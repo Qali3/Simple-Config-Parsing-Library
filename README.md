@@ -3,14 +3,17 @@ SCPL (Simple Config Parsing Library) - is a library for a simple, fast, zero-cop
 
 SCPL syntax example:
 ```scpl
-	theme = [
-		number = 4,
-		string = 'foo',
-		arrays = [5, 'f'],
-		tables = [
-			something = 'a'
-		]
-		// Comment
-		/* Comment Block */
+theme = [
+	number = 4,
+	string = 'foo',
+	arrays = [
+		5,
+		'string'
+	],
+	tables = [
+		something = 'a'
 	]
+	// Comment
+	/* Comment Block */
+]
 ```
