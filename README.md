@@ -1,8 +1,8 @@
-# Simple-Config-Parsing-Library
-SCPL (Simple Config Parsing Library) - is a library for a simple, fast, zero-copy and flexible parsing of scpl-format in C-lanugage.
+# Simple-Config-Parser
+Simple Config Parser (SCP) - is a library for a simple, fast, zero-copy and flexible parsing of scpl-format in C-lanugage.
 
-SCPL syntax example:
-```scpl
+SCP syntax example:
+```scp
 theme = [
 	number = 4,
 	string = 'foo',
