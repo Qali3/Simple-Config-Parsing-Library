@@ -1,4 +1,4 @@
-#include "scpl.h"
+#include "scp.h"
 
 typedef struct {
         void (*callback)(Value*, void*);
@@ -12,9 +12,9 @@ static inline int isDigit(const char c) { return c >= '0' && c <= '9'; }
 int skip(const char **s) {
         for (;;) {
                 if (**s == '/') {
-                        if (*++*s == '/')
+                        if (*++*s == '/') {
                                 while (*++*s != '\n' && **s);
-                        else if (**s == '*') {
+                        } else if (**s == '*') {
                                 while (**s) {
                                         ++*s;
                                         if (**s == '*' && *(*s + 1) == '/') {
@@ -23,10 +23,11 @@ int skip(const char **s) {
                                         }
                                 }
                         }
-                } else if (isVoid(**s))
+                } else if (isVoid(**s)) {
                         ++*s;
-                else
+                } else {
                         break;
+                }
         }
         return **s;
 }
@@ -43,7 +44,7 @@ int parseNumber(Value *v, const char **s) {
                 return 0;
 
         v->strLen = *s - v->str;
-        v->type = SCPL_NUMBER;
+        v->type = SCP_NUMBER;
 
         return 1;
 }
@@ -54,7 +55,7 @@ int parseString(Value *v, const char **s) {
         while (*(*s)++ != '\'') if (!**s) return 0;
 
         v->strLen = *s - v->str - 1;
-        v->type = SCPL_STRING;
+        v->type = SCP_STRING;
 
         return 1;
 }
@@ -62,10 +63,8 @@ int parseString(Value *v, const char **s) {
 int parseKey(UserData *ud, Value *v, const char **s);
 int parseValue(UserData *ud, Value *v, const char **s);
 
-#include <stdio.h>
-
 int parseTable(UserData *ud, Value *v, const char **s) {
-        v->type = SCPL_TABLE;
+        v->type = SCP_TABLE;
 
         v->strLen = 0;
         v->str = 0;
@@ -73,7 +72,6 @@ int parseTable(UserData *ud, Value *v, const char **s) {
         ++*s;
 
         while (skip(s)) {
-                //printf("ALL: %c\n", *v->name);
                 ud->callback(v, ud->data);
 
                 v->nameLen = 0;
@@ -93,7 +91,7 @@ int parseTable(UserData *ud, Value *v, const char **s) {
                 } else if (**s == ']') {
                         ud->callback(v, ud->data);
 
-                        v->type = SCPL_TABLE_END;
+                        v->type = SCP_TABLE_END;
 
                         v->nameLen = 0;
                         v->name = 0;
@@ -147,7 +145,7 @@ int parseKey(UserData *ud, Value *v, const char **s) {
         return parseAssignment(ud, v, s);
 }
 
-int scplParse(void (*callback)(Value*, void*), void *data, const char *s) {
+int scpParse(void (*callback)(Value*, void*), void *data, const char *s) {
         UserData ud = { callback, data };
         Value v = { 0 };
 
