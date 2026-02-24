@@ -13,7 +13,6 @@ theme = [
 	tables = [
 		something = 'a'
 	]
-	// Comment
-	/* Comment Block */
+	# Comment Block #
 ]
 ```
