@@ -1,18 +1,8 @@
-struct Value {
-        int nameLen;
-        const char *name;
+typedef struct {
+        void (*callback)(const char *, unsigned int, void*);
+        void *data;
+} ScpUserData;
 
-        int strLen;
-        const char *str;
-
-        enum {
-                SCP_NUMBER,
-                SCP_STRING,
-                SCP_TABLE,
-                SCP_TABLE_END,
-        } type;
-};
-
-typedef struct Value Value;
-
-int scpParse(void (*callback)(Value*, void*), void *data, const char *str);
+int scpParseTable(ScpUserData *sud, const char **s);
+inline int scpIsAlpha(const char c);
+inline int scpIsDigit(const char c);
