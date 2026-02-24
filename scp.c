@@ -1,162 +1,62 @@
 #include "scp.h"
 
-typedef struct {
-        void (*callback)(Value*, void*);
-        void *data;
-} UserData;
+inline int scpIsAlpha(const char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+inline int scpIsDigit(const char c) { return c >= '0' && c <= '9'; }
 
-static inline int isVoid(const char c)  { return c != '\0' && c <= ' '; }
-static inline int isAlpha(const char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-static inline int isDigit(const char c) { return c >= '0' && c <= '9'; }
-
-int skip(const char **s) {
-        for (;;) {
-                if (**s == '/') {
-                        if (*++*s == '/') {
-                                while (*++*s != '\n' && **s);
-                        } else if (**s == '*') {
-                                while (**s) {
-                                        ++*s;
-                                        if (**s == '*' && *(*s + 1) == '/') {
-                                                *s += 2;
-                                                break;
-                                        }
-                                }
-                        }
-                } else if (isVoid(**s)) {
+static int skip(const char **s) {
+        while (**s)
+                if (**s <= ' ') ++*s;
+                else if (**s == '#') {
+                        while (*++*s != '#')
+                                if (!**s) return 0;
                         ++*s;
-                } else {
-                        break;
                 }
-        }
-        return **s;
+                else return 1;
+        return 0;
 }
 
-int parseNumber(Value *v, const char **s) {
-        v->str = *s;
+static int parseAny(ScpUserData *sud, const char **s);
 
-        if (**s == '-' && *(*s+1) == '.')
-                return 0;
+int scpParseTable(ScpUserData *sud, const char **s) {
+        if (**s == '[') {
+                sud->callback((*s)++, 1, sud->data);
 
-        while (isDigit(*++*s) || **s == '.');
+                while (skip(s)) {
+                        if (!parseAny(sud, s) || !skip(s))
+                                return 0;
 
-        if (*(*s-1) == '.')
-                return 0;
-
-        v->strLen = *s - v->str;
-        v->type = SCP_NUMBER;
-
-        return 1;
-}
-
-int parseString(Value *v, const char **s) {
-        v->str = ++*s;
-
-        while (*(*s)++ != '\'') if (!**s) return 0;
-
-        v->strLen = *s - v->str - 1;
-        v->type = SCP_STRING;
-
-        return 1;
-}
-
-int parseKey(UserData *ud, Value *v, const char **s);
-int parseValue(UserData *ud, Value *v, const char **s);
-
-int parseTable(UserData *ud, Value *v, const char **s) {
-        v->type = SCP_TABLE;
-
-        v->strLen = 0;
-        v->str = 0;
-
-        ++*s;
-
-        while (skip(s)) {
-                ud->callback(v, ud->data);
-
-                v->nameLen = 0;
-                v->name = 0;
-
-                if (!parseValue(ud, v, s) && !parseKey(ud, v, s))
-                        return 0;
-
-                if (!skip(s))
-                        return 0;
-
-                if (**s == ',') {
-                        ++*s;
+                        if (**s == '=') {
+                                ++*s;
+                                if (!skip(s) || !parseAny(sud, s))
+                                        return 0;
+                        }
 
                         if (!skip(s))
                                 return 0;
-                } else if (**s == ']') {
-                        ud->callback(v, ud->data);
 
-                        v->type = SCP_TABLE_END;
-
-                        v->nameLen = 0;
-                        v->name = 0;
-
-                        v->strLen = 0;
-                        v->str = 0;
-
-                        ++*s;
-
-                        return 1;
-                } else
-                        return 0;
-        }
-
-        return 0;
+                        if (**s == ',') ++*s;
+                        else if (**s == ']') { sud->callback((*s)++, 1, sud->data); return 1; }
+                        else return 0;
+                }
+        } else
+                while (skip(s))
+                        if (!parseAny(sud, s) || !skip(s) || *(*s)++ != '=' || !skip(s) || !parseAny(sud, s))
+                                return 0;
+        return 1;
 }
 
-int parseValue(UserData *ud, Value *v, const char **s) {
-        if (isDigit(**s) || **s == '-')
-                return parseNumber(v, s);
-        else if (**s == '\'')
-                return parseString(v, s);
-        else if (**s == '[')
-                return parseTable(ud, v, s);
+static int parseAny(ScpUserData *sud, const char **s) {
+        const char *str = *s;
 
-        return 0;
-}
+        if (scpIsAlpha(**s)) while (scpIsAlpha(*++*s) || scpIsDigit(**s));
+        else if (scpIsDigit(**s)) while (scpIsDigit(*++*s));
+        else if (**s == '\'') while (*++*s != '\'') { if (**s == '\0') return 0; }
+        else if (**s == '[') return scpParseTable(sud, s);
+        else return 0;
 
-int parseAssignment(UserData *ud, Value *v, const char **s) {
-        if (*(*s)++ != '=')
-                return 0;
+        unsigned int len = *s - str;
 
-        if (!skip(s))
-                return 1;
+        sud->callback(str, len, sud->data);
 
-        return parseValue(ud, v, s);
-}
-
-int parseKey(UserData *ud, Value *v, const char **s) {
-        if (isAlpha(**s)) {
-                v->name = *s;
-
-                while (isAlpha(*++*s) || isDigit(**s));
-
-                v->nameLen = *s - v->name;
-        }
-
-        if (!skip(s))
-                return 1;
-
-        return parseAssignment(ud, v, s);
-}
-
-int scpParse(void (*callback)(Value*, void*), void *data, const char *s) {
-        UserData ud = { callback, data };
-        Value v = { 0 };
-
-        while (*s) {
-                if (!skip(&s))
-                        return 1;
-
-                if (!parseKey(&ud, &v, &s))
-                        return 0;
-
-                callback(&v, data);
-        }
         return 1;
 }
