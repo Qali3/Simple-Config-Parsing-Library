@@ -1,5 +1,5 @@
 typedef struct {
-        void (*callback)(const char *, unsigned int, void*);
+        void (*callback)(const char*, unsigned int, void*);
         void *data;
 } ScpUserData;
 
